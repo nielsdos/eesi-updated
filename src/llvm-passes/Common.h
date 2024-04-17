@@ -2,6 +2,7 @@
 #define COMMON_H
 
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Constants.h"
 #include "Constraint.h"
 #include <string>
 

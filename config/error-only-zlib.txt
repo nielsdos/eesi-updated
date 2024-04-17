@@ -1,0 +1,2 @@
+__errno_location
+gz_error

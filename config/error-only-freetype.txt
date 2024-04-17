@@ -1,5 +1,5 @@
-ERR_put_error
 error
 dfaerror
 suppressible_error
 __errno_location
+FT_THROW

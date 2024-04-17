@@ -1,0 +1,2 @@
+exit
+__errno_location

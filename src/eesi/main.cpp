@@ -161,7 +161,7 @@ void fullpropagation(Module &Mod, string error_only_path) {
   cout << "digraph full_prop {\n";
   for (const auto &rp : return_propagated) {
     llvm::Function *f = rp.first;
-    string fname = f->getName();
+    string fname = f->getName().str();
 
     Constraint fc(fname);
     fc.interval = Interval::BOT;

@@ -3,7 +3,7 @@ set(eesi_VERSION_MAJOR 0)
 set(eesi_VERSION_MINOR 1)
 
 cmake_minimum_required(VERSION 3.5)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(eesi)
 include_directories(llvm-passes)
@@ -13,7 +13,7 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS} ${COMPILE_FLAGS})
-link_directories(${LLVM_INSTALL_PREFIX}/lib /usr/lib/x86_65-linux-gnu)
+link_directories(${LLVM_INSTALL_PREFIX}/lib /usr/lib/x86_64-linux-gnu)
 
 find_package(Boost COMPONENTS program_options REQUIRED)
 
@@ -41,7 +41,8 @@ add_library(eesillvm SHARED ${PASS_FILES})
 #set_target_properties(mypasses PROPERTIES COMPILE_FLAGS -fno-exceptions)
 #set_target_properties(eesillvm PROPERTIES COMPILE_FLAGS -fno-exceptions)
 
-llvm_map_components_to_libnames(llvm_libs support core irreader analysis)
+#llvm_map_components_to_libnames(llvm_libs core support bitreader)
+llvm_map_components_to_libnames(llvm_libs -16)
 target_link_libraries(eesillvm ${llvm_libs} ${Boost_LIBRARIES} glog)
 
 add_executable(eesi ${EESI_FILES})

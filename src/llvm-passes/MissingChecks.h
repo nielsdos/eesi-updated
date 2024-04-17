@@ -8,6 +8,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
 #include "Constraint.h"
+#include "llvm/IR/Constants.h"
 #include <string>
 #include <unordered_map>
 #include <unordered_set>

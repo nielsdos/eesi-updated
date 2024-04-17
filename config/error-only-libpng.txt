@@ -1,0 +1,3 @@
+__errno_location
+png_warning
+png_error

@@ -1,6 +1,7 @@
 #include "Constraint.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Constants.h"
 
 using namespace std;
 using namespace llvm;
@@ -9,10 +10,10 @@ namespace errspec {
 
 string getCalleeName(const CallInst &I) {
   string fname = "";
-  const Value *callee = I.getCalledValue();
+  const Value *callee = I.getCalledOperand();
   if (!callee)
     return fname;
-  fname = callee->stripPointerCasts()->getName();
+  fname = callee->stripPointerCasts()->getName().str();
   return fname;
 }
 

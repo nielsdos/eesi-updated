@@ -101,12 +101,12 @@ void MissingChecks::visitCallInst(llvm::CallInst *I) {
 
   bool debug = false;
   Function *p = I->getParent()->getParent();
-  string parent = p->getName();
+  string parent = p->getName().str();
   if (parent == debug_function) {
     debug = true;
   }
 
-  Function *f = dyn_cast<Function>(I->getCalledValue()->stripPointerCasts());
+  Function *f = dyn_cast<Function>(I->getCalledOperand()->stripPointerCasts());
   if (!f)
     return;
   string fname = getCalleeName(*I);
@@ -222,7 +222,7 @@ void MissingChecks::visitCallInst(llvm::CallInst *I) {
     } else if (CallInst *call = dyn_cast<CallInst>(inst)) {
       string fname = getCalleeName(*call);
       if (fname.find("IS_ERR") != string::npos) {
-        for (int i = 0; i < call->getNumArgOperands(); ++i) {
+        for (int i = 0; i < call->arg_size(); ++i) {
           Value *op = call->getArgOperand(i);
           if (input_fact->valueMayHold(op, I)) {
             checked = true;
@@ -251,7 +251,7 @@ void MissingChecks::visitCallInst(llvm::CallInst *I) {
   if (!checked && !filtered) {
     // Get the source location of the call and print that out
     if (DILocation *loc2 = I->getDebugLoc()) {
-      string file2 = loc2->getFilename();
+      string file2 = loc2->getFilename().str();
       unsigned line2 = loc2->getLine();
       unchecked_calls[fname] = unchecked_calls[fname] + 1;
       string sloc = file2 + ":" + to_string(line2);

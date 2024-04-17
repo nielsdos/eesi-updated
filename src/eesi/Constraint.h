@@ -411,6 +411,7 @@ struct Constraint {
     default:
       abort();
     }
+    return ret;
   }
 };
 
@@ -441,6 +442,7 @@ inline std::ostream &operator<<(std::ostream &os, const Interval &interval) {
 inline std::ostream &operator<<(std::ostream &os,
                                 const Constraint &constraint) {
   os << constraint.fname << " " << constraint.interval;
+  return os;
 }
 
 #endif

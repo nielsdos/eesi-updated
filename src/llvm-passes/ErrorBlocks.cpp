@@ -104,7 +104,7 @@ bool ErrorBlocks::visitBlock(BasicBlock &BB) {
   ReturnedValues &returned_values = getAnalysis<ReturnedValues>();
   ReturnPropagation &return_propagation = getAnalysis<ReturnPropagation>();
 
-  string parent_fname = BB.getParent()->getName();
+  string parent_fname = BB.getParent()->getName().str();
   Instruction *bb_first = GetFirstInstructionOfBB(&BB);
   Instruction *bb_last = GetLastInstructionOfBB(&BB);
 
@@ -358,7 +358,7 @@ bool ErrorBlocks::visitCallInst(CallInst &I) {
       }
     }
 
-    error_only_bootstrap.insert(parent->getName());
+    error_only_bootstrap.insert(parent->getName().str());
   }
 
   return changed;
@@ -379,9 +379,9 @@ bool ErrorBlocks::addErrorValue(Function *f, int64_t v) {
   }
 
   // Insert abstraction of constant in abstract_error_return_values
-  Constraint c(f->getName());
+  Constraint c(f->getName().str());
   c.interval = abstractInteger(v);
-  string fname = f->getName();
+  string fname = f->getName().str();
   if (!haveAERV(fname)) {
     abstract_error_return_values[fname] = c;
     changed = true;

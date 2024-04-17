@@ -1,0 +1,229 @@
+From 72a551f3d41e82dfd06651bea14436c167389e47 Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Thu, 15 Dec 2022 11:40:23 +0100
+Subject: [PATCH] Port to newer LLVM, fix compilation errors and UB crash
+
+---
+ .gitignore                        | 2 ++
+ src/CMakeLists.txt                | 7 ++++---
+ src/eesi/Constraint.h             | 2 ++
+ src/eesi/main.cpp                 | 2 +-
+ src/llvm-passes/Common.cpp        | 7 ++++---
+ src/llvm-passes/Common.h          | 3 ++-
+ src/llvm-passes/ErrorBlocks.cpp   | 8 ++++----
+ src/llvm-passes/MissingChecks.cpp | 8 ++++----
+ src/llvm-passes/MissingChecks.h   | 1 +
+ 9 files changed, 24 insertions(+), 16 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 3d1c9b1..4ed3638 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,3 +1,5 @@
++*.so
++build
+ *.aux
+ *.bbl
+ *.blg
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 9c5db0f..713f063 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -3,7 +3,7 @@ set(eesi_VERSION_MAJOR 0)
+ set(eesi_VERSION_MINOR 1)
+ 
+ cmake_minimum_required(VERSION 3.5)
+-set(CMAKE_CXX_STANDARD 11)
++set(CMAKE_CXX_STANDARD 17)
+ 
+ include_directories(eesi)
+ include_directories(llvm-passes)
+@@ -13,7 +13,7 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+ include_directories(${LLVM_INCLUDE_DIRS})
+ add_definitions(${LLVM_DEFINITIONS} ${COMPILE_FLAGS})
+-link_directories(${LLVM_INSTALL_PREFIX}/lib /usr/lib/x86_65-linux-gnu)
++link_directories(${LLVM_INSTALL_PREFIX}/lib /usr/lib/x86_64-linux-gnu)
+ 
+ find_package(Boost COMPONENTS program_options REQUIRED)
+ 
+@@ -41,7 +41,8 @@ add_library(eesillvm SHARED ${PASS_FILES})
+ #set_target_properties(mypasses PROPERTIES COMPILE_FLAGS -fno-exceptions)
+ #set_target_properties(eesillvm PROPERTIES COMPILE_FLAGS -fno-exceptions)
+ 
+-llvm_map_components_to_libnames(llvm_libs support core irreader analysis)
++#llvm_map_components_to_libnames(llvm_libs core support bitreader)
++llvm_map_components_to_libnames(llvm_libs -16)
+ target_link_libraries(eesillvm ${llvm_libs} ${Boost_LIBRARIES} glog)
+ 
+ add_executable(eesi ${EESI_FILES})
+diff --git a/src/eesi/Constraint.h b/src/eesi/Constraint.h
+index 8ce46a6..59bc71a 100644
+--- a/src/eesi/Constraint.h
++++ b/src/eesi/Constraint.h
+@@ -411,6 +411,7 @@ struct Constraint {
+     default:
+       abort();
+     }
++    return ret;
+   }
+ };
+ 
+@@ -441,6 +442,7 @@ inline std::ostream &operator<<(std::ostream &os, const Interval &interval) {
+ inline std::ostream &operator<<(std::ostream &os,
+                                 const Constraint &constraint) {
+   os << constraint.fname << " " << constraint.interval;
++  return os;
+ }
+ 
+ #endif
+diff --git a/src/eesi/main.cpp b/src/eesi/main.cpp
+index 5a68dd0..aa89a3b 100644
+--- a/src/eesi/main.cpp
++++ b/src/eesi/main.cpp
+@@ -161,7 +161,7 @@ void fullpropagation(Module &Mod, string error_only_path) {
+   cout << "digraph full_prop {\n";
+   for (const auto &rp : return_propagated) {
+     llvm::Function *f = rp.first;
+-    string fname = f->getName();
++    string fname = f->getName().str();
+ 
+     Constraint fc(fname);
+     fc.interval = Interval::BOT;
+diff --git a/src/llvm-passes/Common.cpp b/src/llvm-passes/Common.cpp
+index db5da5c..2e1f653 100644
+--- a/src/llvm-passes/Common.cpp
++++ b/src/llvm-passes/Common.cpp
+@@ -1,6 +1,7 @@
+ #include "Constraint.h"
+ #include "llvm/IR/CFG.h"
+ #include "llvm/IR/Instructions.h"
++#include "llvm/IR/Constants.h"
+ 
+ using namespace std;
+ using namespace llvm;
+@@ -9,10 +10,10 @@ namespace errspec {
+ 
+ string getCalleeName(const CallInst &I) {
+   string fname = "";
+-  const Value *callee = I.getCalledValue();
++  const Value *callee = I.getCalledOperand();
+   if (!callee)
+     return fname;
+-  fname = callee->stripPointerCasts()->getName();
++  fname = callee->stripPointerCasts()->getName().str();
+   return fname;
+ }
+ 
+@@ -79,4 +80,4 @@ pair<Interval, Interval> abstractICmp(ICmpInst &I) {
+ 
+ 
+ 
+-}
+\ No newline at end of file
++}
+diff --git a/src/llvm-passes/Common.h b/src/llvm-passes/Common.h
+index b49692d..ed66009 100644
+--- a/src/llvm-passes/Common.h
++++ b/src/llvm-passes/Common.h
+@@ -2,6 +2,7 @@
+ #define COMMON_H
+ 
+ #include "llvm/IR/Instructions.h"
++#include "llvm/IR/Constants.h"
+ #include "Constraint.h"
+ #include <string>
+ 
+@@ -14,4 +15,4 @@ llvm::Instruction *GetLastInstructionOfBB(llvm::BasicBlock *bb);
+ std::pair<Interval, Interval> abstractICmp(llvm::ICmpInst &I);
+ }
+ 
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/src/llvm-passes/ErrorBlocks.cpp b/src/llvm-passes/ErrorBlocks.cpp
+index 6e3090c..c379e0b 100644
+--- a/src/llvm-passes/ErrorBlocks.cpp
++++ b/src/llvm-passes/ErrorBlocks.cpp
+@@ -104,7 +104,7 @@ bool ErrorBlocks::visitBlock(BasicBlock &BB) {
+   ReturnedValues &returned_values = getAnalysis<ReturnedValues>();
+   ReturnPropagation &return_propagation = getAnalysis<ReturnPropagation>();
+ 
+-  string parent_fname = BB.getParent()->getName();
++  string parent_fname = BB.getParent()->getName().str();
+   Instruction *bb_first = GetFirstInstructionOfBB(&BB);
+   Instruction *bb_last = GetLastInstructionOfBB(&BB);
+ 
+@@ -358,7 +358,7 @@ bool ErrorBlocks::visitCallInst(CallInst &I) {
+       }
+     }
+ 
+-    error_only_bootstrap.insert(parent->getName());
++    error_only_bootstrap.insert(parent->getName().str());
+   }
+ 
+   return changed;
+@@ -379,9 +379,9 @@ bool ErrorBlocks::addErrorValue(Function *f, int64_t v) {
+   }
+ 
+   // Insert abstraction of constant in abstract_error_return_values
+-  Constraint c(f->getName());
++  Constraint c(f->getName().str());
+   c.interval = abstractInteger(v);
+-  string fname = f->getName();
++  string fname = f->getName().str();
+   if (!haveAERV(fname)) {
+     abstract_error_return_values[fname] = c;
+     changed = true;
+diff --git a/src/llvm-passes/MissingChecks.cpp b/src/llvm-passes/MissingChecks.cpp
+index e47677c..5c37567 100644
+--- a/src/llvm-passes/MissingChecks.cpp
++++ b/src/llvm-passes/MissingChecks.cpp
+@@ -101,12 +101,12 @@ void MissingChecks::visitCallInst(llvm::CallInst *I) {
+ 
+   bool debug = false;
+   Function *p = I->getParent()->getParent();
+-  string parent = p->getName();
++  string parent = p->getName().str();
+   if (parent == debug_function) {
+     debug = true;
+   }
+ 
+-  Function *f = dyn_cast<Function>(I->getCalledValue()->stripPointerCasts());
++  Function *f = dyn_cast<Function>(I->getCalledOperand()->stripPointerCasts());
+   if (!f)
+     return;
+   string fname = getCalleeName(*I);
+@@ -222,7 +222,7 @@ void MissingChecks::visitCallInst(llvm::CallInst *I) {
+     } else if (CallInst *call = dyn_cast<CallInst>(inst)) {
+       string fname = getCalleeName(*call);
+       if (fname.find("IS_ERR") != string::npos) {
+-        for (int i = 0; i < call->getNumArgOperands(); ++i) {
++        for (int i = 0; i < call->arg_size(); ++i) {
+           Value *op = call->getArgOperand(i);
+           if (input_fact->valueMayHold(op, I)) {
+             checked = true;
+@@ -251,7 +251,7 @@ void MissingChecks::visitCallInst(llvm::CallInst *I) {
+   if (!checked && !filtered) {
+     // Get the source location of the call and print that out
+     if (DILocation *loc2 = I->getDebugLoc()) {
+-      string file2 = loc2->getFilename();
++      string file2 = loc2->getFilename().str();
+       unsigned line2 = loc2->getLine();
+       unchecked_calls[fname] = unchecked_calls[fname] + 1;
+       string sloc = file2 + ":" + to_string(line2);
+diff --git a/src/llvm-passes/MissingChecks.h b/src/llvm-passes/MissingChecks.h
+index 30d82c2..45447eb 100644
+--- a/src/llvm-passes/MissingChecks.h
++++ b/src/llvm-passes/MissingChecks.h
+@@ -8,6 +8,7 @@
+ #include "llvm/Pass.h"
+ #include "llvm/Support/raw_ostream.h"
+ #include "Constraint.h"
++#include "llvm/IR/Constants.h"
+ #include <string>
+ #include <unordered_map>
+ #include <unordered_set>
+-- 
+2.44.0
+

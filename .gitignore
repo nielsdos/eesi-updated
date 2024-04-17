@@ -1,3 +1,5 @@
+*.so
+build
 *.aux
 *.bbl
 *.blg
