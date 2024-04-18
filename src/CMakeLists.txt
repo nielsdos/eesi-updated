@@ -42,7 +42,7 @@ add_library(eesillvm SHARED ${PASS_FILES})
 #set_target_properties(eesillvm PROPERTIES COMPILE_FLAGS -fno-exceptions)
 
 #llvm_map_components_to_libnames(llvm_libs core support bitreader)
-llvm_map_components_to_libnames(llvm_libs -16)
+llvm_map_components_to_libnames(llvm_libs -14)
 target_link_libraries(eesillvm ${llvm_libs} ${Boost_LIBRARIES} glog)
 
 add_executable(eesi ${EESI_FILES})

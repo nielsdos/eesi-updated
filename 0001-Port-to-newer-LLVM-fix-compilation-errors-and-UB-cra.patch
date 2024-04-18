@@ -53,7 +53,7 @@ index 9c5db0f..713f063 100644
  
 -llvm_map_components_to_libnames(llvm_libs support core irreader analysis)
 +#llvm_map_components_to_libnames(llvm_libs core support bitreader)
-+llvm_map_components_to_libnames(llvm_libs -16)
++llvm_map_components_to_libnames(llvm_libs -14)
  target_link_libraries(eesillvm ${llvm_libs} ${Boost_LIBRARIES} glog)
  
  add_executable(eesi ${EESI_FILES})
